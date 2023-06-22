@@ -93,7 +93,13 @@ sub MAIN (
     my $NODEGROUP               = $node-info[0]<NODEGROUP>          or die;
 
 #   select DOMAIN_NAME,SCHEDULE_NAME from ASSOCIATIONS where NODE_NAME='$NODE_NAME'
+    my $sched-info              = $dsmadmc.execute(['SELECT', 'DOMAIN_NAME,SCHEDULE_NAME', 'FROM', 'ASSOCIATIONS', 'WHERE', 'NODE_NAME=' ~ q|'| ~ $NODE_NAME ~ q|'|]);
+ddt $sched-info;
+
 #   select STARTTIME from CLIENT_SCHEDULES where DOMAIN_NAME='$DOMAIN_NAME' and SCHEDULE_NAME='$SCHEDULE_NAME'
+    my $starttime-info          = $dsmadmc.execute(['SELECT', 'STARTTIME', 'FROM', 'CLIENT_SCHEDULES', 'WHERE', 'DOMAIN_NAME=' ~ q|'| ~ 'NFS' ~ q|'|, 'AND', 'SCHEDULE_NAME=' ~ q|'| ~ 'SCH_0600' ~ q|'|]);
+ddt $starttime-info;
+
 #   QUERY REPLNODE $NODE_NAME
 #                              Node Name: C_DCI_UNIX_SUDO
 #                                   Type: Bkup
@@ -104,34 +110,38 @@ sub MAIN (
 #              Target Replication Server: ISPLC01
 
 
-    my $table = Prettier::Table.new:
-        title => "IBM Spectrum Protect Configuration Summary",
-        field-names => [
-            "NODE_NAME",
-            "NODEGROUP",
-            "SESSION_SECURITY",
-            "Current ISP Server",
-            "Proposed ISP Server",
-        ],
-        align => %(
-            "NODE_NAME"             => 'c',
-            "NODEGROUP"             => 'c',
-            "SESSION_SECURITY"      => 'c',
-            "Current ISP Server"    => 'c',
-            "Proposed ISP Server"   => 'c',
-        ),
-    ;
 
-    given $table {
-        .add-row: [
-                    $NODE_NAME,
-                    $NODEGROUP,
-                    $SESSION_SECURITY,
-                    $CURRENT_SERVER_NAME,
-                    $PROPOSED_SERVER_NAME,
-                  ];
-    }
-    put $table;
+
+
+
+#   my $table = Prettier::Table.new:
+#       title => "IBM Spectrum Protect Configuration Summary",
+#       field-names => [
+#           "NODE_NAME",
+#           "NODEGROUP",
+#           "SESSION_SECURITY",
+#           "Current ISP Server",
+#           "Proposed ISP Server",
+#       ],
+#       align => %(
+#           "NODE_NAME"             => 'c',
+#           "NODEGROUP"             => 'c',
+#           "SESSION_SECURITY"      => 'c',
+#           "Current ISP Server"    => 'c',
+#           "Proposed ISP Server"   => 'c',
+#       ),
+#   ;
+
+#   given $table {
+#       .add-row: [
+#                   $NODE_NAME,
+#                   $NODEGROUP,
+#                   $SESSION_SECURITY,
+#                   $CURRENT_SERVER_NAME,
+#                   $PROPOSED_SERVER_NAME,
+#                 ];
+#   }
+#   put $table;
 }
 =finish
 
