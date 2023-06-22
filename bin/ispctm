@@ -96,39 +96,41 @@ sub MAIN (
 
 #   select DOMAIN_NAME,SCHEDULE_NAME from ASSOCIATIONS where NODE_NAME='$NODE_NAME'
     my $sched-info              = $dsmadmc.execute(['SELECT', 'DOMAIN_NAME,SCHEDULE_NAME', 'FROM', 'ASSOCIATIONS', 'WHERE', 'NODE_NAME=' ~ q|'| ~ $NODE_NAME ~ q|'|]);
-ddt $sched-info;
+    my $DOMAIN_NAME             = $sched-info[0]<DOMAIN_NAME>   or die;
+    my $SCHEDULE_NAME           = $sched-info[0]<SCHEDULE_NAME> or die;
+#ddt $sched-info;
 
 #   select STARTTIME from CLIENT_SCHEDULES where DOMAIN_NAME='$DOMAIN_NAME' and SCHEDULE_NAME='$SCHEDULE_NAME'
-    my $starttime-info          = $dsmadmc.execute(['SELECT', 'STARTTIME', 'FROM', 'CLIENT_SCHEDULES', 'WHERE', 'DOMAIN_NAME=' ~ q|'| ~ 'NFS' ~ q|'|, 'AND', 'SCHEDULE_NAME=' ~ q|'| ~ 'SCH_0600' ~ q|'|]);
-ddt $starttime-info;
+    my $starttime-info          = $dsmadmc.execute(['SELECT', 'STARTTIME', 'FROM', 'CLIENT_SCHEDULES', 'WHERE', 'DOMAIN_NAME=' ~ q|'| ~ $DOMAIN_NAME ~ q|'|, 'AND', 'SCHEDULE_NAME=' ~ q|'| ~ $SCHEDULE_NAME ~ q|'|]);
+#ddt $starttime-info;
     my ($hour, $minute, $second);
     ($hour, $minute, $second)   = $starttime-info[0]{'STARTTIME'}.split: ':';
-    my $start-dt                = DateTime.new(date => Date.new(now), :$hour, :$minute, :$second, :timezone($dsmadmc.seconds-offset-UTC));
-put $start-dt.local ~ ' - ' ~ now.DateTime.local ~ ' = ' ~ ($start-dt - now);
-    $start-dt                   = DateTime.new(date => Date.new(now), :$HOUR, :$minute, :$second, :timezone($dsmadmc.seconds-offset-UTC))) if ($start-dt - now) <= 0;
-put $start-dt.local ~ ' - ' ~ now.DateTime.local ~ ' = ' ~ ($start-dt - now);
+    my $start-dt                = DateTime.new(date => Date.today, :$hour, :$minute, :$second, :timezone($dsmadmc.seconds-offset-UTC));
+    $start-dt                   = DateTime.new(date => (Date.today + 1), :$hour, :$minute, :$second, :timezone($dsmadmc.seconds-offset-UTC)) if ($start-dt - now) <= 0;
+#put $start-dt ~ ' - ' ~ now.DateTime ~ ' = ' ~ ($start-dt - now);
 #
 #   - a value < (QUERYSCHEDPERIOD * 60 * 60) means the CA has to be recycled
 #   - otherwise, we're fine -- proceed
 #
-    if ($start-dt - DateTime.new(now)) > (QUERYSCHEDPERIOD * 60 * 60) {
-warn "too soon";
+#put "if ($start-dt - DateTime.new(now)) " ~ ($start-dt - DateTime.new(now)) ~ ' < ' ~ (QUERYSCHEDPERIOD * 60 * 60);
+    if ($start-dt - DateTime.new(now)) < (QUERYSCHEDPERIOD * 60 * 60) {
+        $*ERR.put: colored('Remember to cycle the Client Acceptor because it may not refresh before the schedule is called!', 'red');
+        die colored('Check to make sure their are no active SESSIONs for this NODE!', 'red');
     }
     else {
-warn 'fine';
+#warn 'fine: ' ~ ($start-dt - DateTime.new(now));
     }
-
-die;
 
     my $replnode-info           = $dsmadmc.execute(['QUERY', 'REPLNODE', $NODE_NAME]);
     for $replnode-info.list -> $rcd {
         my $diff                = $rcd{'Objects on Source Replication Server'}.subst(',', :g) - $rcd{'Objects on Target Replication Server'}.subst(',', :g);
         if $diff > 0 {
             colored('Current replication source has ' ~ $diff ~ ' unreplicated objects pending!', 'white on_black').put;
-            die 'Finish replicating ' ~ $NODE_NAME ~ ' before continuing.';
+            die colored('Finish replicating ' ~ $NODE_NAME ~ ' before continuing.', 'red');
         }
         $PROPOSED_SERVER_NAME   = $rcd{'Target Replication Server'};
     }
+#ddt $replnode-info;
 #   QUERY REPLNODE $NODE_NAME
 #                              Node Name: C_DCI_UNIX_SUDO
 #                                   Type: Bkup
@@ -142,34 +144,47 @@ die;
 
 
 
-#   my $table = Prettier::Table.new:
-#       title => "IBM Spectrum Protect Configuration Summary",
-#       field-names => [
-#           "NODE_NAME",
-#           "NODEGROUP",
-#           "SESSION_SECURITY",
-#           "Current ISP Server",
-#           "Proposed ISP Server",
-#       ],
-#       align => %(
-#           "NODE_NAME"             => 'c',
-#           "NODEGROUP"             => 'c',
-#           "SESSION_SECURITY"      => 'c',
-#           "Current ISP Server"    => 'c',
-#           "Proposed ISP Server"   => 'c',
-#       ),
-#   ;
+    my $table = Prettier::Table.new:
+        title => "IBM Spectrum Protect Configuration Topology Summary",
+        field-names => [
+            "NODE_NAME",
+            "DOMAIN_NAME",
+            "SCHEDULE_NAME",
+            "NODEGROUP",
+            "SESSION_SECURITY",
+            "Current ISP Server",
+            "Proposed ISP Server",
+        ],
+        align => %(
+            "NODE_NAME"             => 'c',
+            "DOMAIN_NAME"           => 'c',
+            "SCHEDULE_NAME"         => 'c',
+            "NODEGROUP"             => 'c',
+            "SESSION_SECURITY"      => 'c',
+            "Current ISP Server"    => 'c',
+            "Proposed ISP Server"   => 'c',
+        ),
+    ;
 
-#   given $table {
-#       .add-row: [
-#                   $NODE_NAME,
-#                   $NODEGROUP,
-#                   $SESSION_SECURITY,
-#                   $CURRENT_SERVER_NAME,
-#                   $PROPOSED_SERVER_NAME,
-#                 ];
-#   }
-#   put $table;
+    given $table {
+        .add-row: [
+                    $NODE_NAME,
+                    $DOMAIN_NAME,
+                    $SCHEDULE_NAME,
+                    $NODEGROUP,
+                    $SESSION_SECURITY,
+                    $CURRENT_SERVER_NAME,
+                    $PROPOSED_SERVER_NAME,
+                  ];
+    }
+    put $table;
+
+    put colored($PROPOSED_SERVER_NAME, 'white on_green');
+    put colored('UPDATE NODE '
+              ~ $NODE_NAME ~ ' '
+              ~ KHPH.new(:stash-path($*HOME ~ '/.' ~ $*PROGRAM-NAME.IO.basename ~ '/defaults/' ~ $CURRENT_SERVER_NAME ~ '/NODE/NODES.khph')).expose
+              ~ ' SESSIONSECURITY=TRANSITIONAL' , 'green');
+    put colored('UNLOCK NODE ' ~ $NODE_NAME, 'green');
 }
 =finish
 
@@ -182,7 +197,8 @@ die;
 #           - if STGRULE hasn't finished replication fully, report and terminate
 #       - determine current home and proposed home
 #   - ask the user if they want to switch
-#   - lc01 update NODE P_FCS_WAS xxxxxxxx SESSIONSECURITY=TRANSITIONAL
+#   - lc01 UPDATE NODE P_FCS_WAS xxxxxxxx SESSIONSECURITY=TRANSITIONAL
+#   - lc01 UNLOCK NODE P_FCS_WAS
 #   - lc02 DELETE ASSOCIATION NFS SCH_2300 P_FCS_WAS 
 #   - lc02 DELETE NODEGROUPMEMBER NFS P_FCS_WAS 
 #   - lc02 REMOVE REPLNODE P_FCS_WAS SERVER=ISPLC01 
