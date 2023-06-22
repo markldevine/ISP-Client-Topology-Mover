@@ -78,70 +78,48 @@ sub MAIN (
         die 'SERVERNAME stanza containing $isp-server-current <' ~ $CURRENT_SERVER_NAME ~ "> not found in '/opt/tivoli/tsm/client/ba/bin/dsm.sys'";
     }
 
-#    my $proc;
-#    my $err;
-#    my $out;
-#    $proc        = run   
-##                       '/usr/bin/stdbuf',
-##                       '-i0',
-##                       '-o0',
-##                       '-e0',
-#                        '/usr/bin/dsmadmc',
-#                        '-SE=' ~ $isp-admin ~ '_' ~ $CURRENT_SERVER_NAME,
-#                        '-ID=' ~ $isp-admin,
-#                        '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $CURRENT_SERVER_NAME ~ '/' ~ $isp-admin ~ '.khph')).expose,
-#                        '-DATAONLY=YES',
-#                        '-DISPLAYMODE=TABLE',
-#                        '-TABDELIMITED',
-#                        'SELECT',
-#                        'SERVER_NAME',
-#                        'FROM',
-#                        'STATUS',
-#                        :err,
-#                        :out;
-#    my $err         = $proc.err.slurp(:close);
-#    my $out         = $proc.out.slurp(:close);
-#    put 'Note: dsm.sys SERVERNAME stanza <' ~ $CURRENT_SERVER_NAME ~ '> ≠ <' ~ $out.chomp ~ "> ISP Server's SERVER_NAME" unless $CURRENT_SERVER_NAME eq $out.chomp;
-
 ################################################################################
 #   Sort out the ISP client (NODE) info                                        #
 ################################################################################
 
-    my $NODE_NAME   = $isp-node-name.uc;
+    my $PROPOSED_SERVER_NAME    = '';
+    my $NODE_NAME               = $isp-node-name.uc;
 
     my ISP::dsmadmc $dsmadmc   .= new(:isp-server($CURRENT_SERVER_NAME), :$isp-admin);
+
     my $node-info               = $dsmadmc.execute(['SELECT', 'NODE_NAME,SESSION_SECURITY,NODEGROUP', 'FROM', 'NODES', 'WHERE', 'NODE_NAME=' ~ q|'| ~ $NODE_NAME ~ q|'|]);
-    $NODE_NAME                  = $node-info[0]<NODE_NAME> with $node-info[0]<NODE_NAME>;
-    if $node-info[0]<NODE_NAME>:exists && $node-info[0]<OPTION_SET> ne $NODE_NAME {
-        colored($NODE_NAME ~ ' requires CLOPTSET "' ~ $NODE_NAME ~ '" before proceeding.', 'red on_black').put;
-        exit 1;
-    }
-    my $SESSION_SECURITY;
-    $SESSION_SECURITY           = $node-info[0]<SESSION_SECURITY> with $node-info[0]<SESSION_SECURITY>;
-warn $SESSION_SECURITY;
-    my $NODEGROUP;
-    $NODEGROUP                  = $node-info[0]<NODEGROUP> with $node-info[0]<NODEGROUP>;
-warn $NODEGROUP;
+    $NODE_NAME                  = $node-info[0]<NODE_NAME>          or die;
+    my $SESSION_SECURITY        = $node-info[0]<SESSION_SECURITY>   or die;
+    my $NODEGROUP               = $node-info[0]<NODEGROUP>          or die;
+
+#   select DOMAIN_NAME,SCHEDULE_NAME from ASSOCIATIONS where NODE_NAME='$NODE_NAME'
+#   select STARTTIME from CLIENT_SCHEDULES where DOMAIN_NAME='$DOMAIN_NAME' and SCHEDULE_NAME='$SCHEDULE_NAME'
 
     my $table = Prettier::Table.new:
         title => "IBM Spectrum Protect Configuration Summary",
         field-names => [
-            "ISP Node Name",
-            "ISP Server - Current",
-            "ISP Server - New",
+            "NODE_NAME",
+            "NODEGROUP",
+            "SESSION_SECURITY",
+            "Current ISP Server",
+            "Proposed ISP Server",
         ],
         align => %(
-            "ISP Node Name" => 'l',
-            "ISP Server - Current"  => 'l',
-            "ISP Server - New" => 'l',
+            "NODE_NAME"             => 'c',
+            "NODEGROUP"             => 'c',
+            "SESSION_SECURITY"      => 'c',
+            "Current ISP Server"    => 'c',
+            "Proposed ISP Server"   => 'c',
         ),
     ;
 
     given $table {
         .add-row: [
                     $NODE_NAME,
+                    $NODEGROUP,
+                    $SESSION_SECURITY,
                     $CURRENT_SERVER_NAME,
-                    $NEW_SERVER_NAME,
+                    $PROPOSED_SERVER_NAME,
                   ];
     }
     put $table;
