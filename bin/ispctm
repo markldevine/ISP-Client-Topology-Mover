@@ -8,6 +8,8 @@ use Data::Dump::Tree;
 #use Grammar::Debugger;
 #use Grammar::Tracer;
 
+constant    \QUERYSCHEDPERIOD   = 4;
+
 my %isp-servers;
 constant @redis-servers = <jgstmgtgate1lpv.wmata.local ctstmgtgate1lpv.wmata.local>;
 
@@ -99,7 +101,34 @@ ddt $sched-info;
 #   select STARTTIME from CLIENT_SCHEDULES where DOMAIN_NAME='$DOMAIN_NAME' and SCHEDULE_NAME='$SCHEDULE_NAME'
     my $starttime-info          = $dsmadmc.execute(['SELECT', 'STARTTIME', 'FROM', 'CLIENT_SCHEDULES', 'WHERE', 'DOMAIN_NAME=' ~ q|'| ~ 'NFS' ~ q|'|, 'AND', 'SCHEDULE_NAME=' ~ q|'| ~ 'SCH_0600' ~ q|'|]);
 ddt $starttime-info;
+    my ($hour, $minute, $second);
+    ($hour, $minute, $second)   = $starttime-info[0]{'STARTTIME'}.split: ':';
+    my $start-dt                = DateTime.new(date => Date.new(now), :$hour, :$minute, :$second, :timezone($dsmadmc.seconds-offset-UTC));
+put $start-dt.local ~ ' - ' ~ now.DateTime.local ~ ' = ' ~ ($start-dt - now);
+    $start-dt                   = DateTime.new(date => Date.new(now), :$HOUR, :$minute, :$second, :timezone($dsmadmc.seconds-offset-UTC))) if ($start-dt - now) <= 0;
+put $start-dt.local ~ ' - ' ~ now.DateTime.local ~ ' = ' ~ ($start-dt - now);
+#
+#   - a value < (QUERYSCHEDPERIOD * 60 * 60) means the CA has to be recycled
+#   - otherwise, we're fine -- proceed
+#
+    if ($start-dt - DateTime.new(now)) > (QUERYSCHEDPERIOD * 60 * 60) {
+warn "too soon";
+    }
+    else {
+warn 'fine';
+    }
 
+die;
+
+    my $replnode-info           = $dsmadmc.execute(['QUERY', 'REPLNODE', $NODE_NAME]);
+    for $replnode-info.list -> $rcd {
+        my $diff                = $rcd{'Objects on Source Replication Server'}.subst(',', :g) - $rcd{'Objects on Target Replication Server'}.subst(',', :g);
+        if $diff > 0 {
+            colored('Current replication source has ' ~ $diff ~ ' unreplicated objects pending!', 'white on_black').put;
+            die 'Finish replicating ' ~ $NODE_NAME ~ ' before continuing.';
+        }
+        $PROPOSED_SERVER_NAME   = $rcd{'Target Replication Server'};
+    }
 #   QUERY REPLNODE $NODE_NAME
 #                              Node Name: C_DCI_UNIX_SUDO
 #                                   Type: Bkup
@@ -108,7 +137,6 @@ ddt $starttime-info;
 #   Objects on Source Replication Server: 36,369,138
 #   Objects on Target Replication Server: 36,369,138
 #              Target Replication Server: ISPLC01
-
 
 
 
