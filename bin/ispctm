@@ -94,6 +94,15 @@ sub MAIN (
 
 #   select DOMAIN_NAME,SCHEDULE_NAME from ASSOCIATIONS where NODE_NAME='$NODE_NAME'
 #   select STARTTIME from CLIENT_SCHEDULES where DOMAIN_NAME='$DOMAIN_NAME' and SCHEDULE_NAME='$SCHEDULE_NAME'
+#   QUERY REPLNODE $NODE_NAME
+#                              Node Name: C_DCI_UNIX_SUDO
+#                                   Type: Bkup
+#                         Filespace Name: /nfsmounts/C_DCI_UNIX_SUDO
+#                                   FSID: 1
+#   Objects on Source Replication Server: 36,369,138
+#   Objects on Target Replication Server: 36,369,138
+#              Target Replication Server: ISPLC01
+
 
     my $table = Prettier::Table.new:
         title => "IBM Spectrum Protect Configuration Summary",
