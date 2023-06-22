@@ -146,7 +146,11 @@ sub MAIN (
 #   - get the NODE in question
 #       - get NODEGROUPs
 #       - get ASSOCIATIONs
+#           - if next job is less than 4 hours (QUERYSCHEDPERIOD), warn and advise that manual CA restart is required afterward
 #       - check REPLNODE
+#           - if STGRULE hasn't finished replication fully, report and terminate
+#       - determine current home and proposed home
+#   - ask the user if they want to switch
 #   - lc01 update NODE P_FCS_WAS xxxxxxxx SESSIONSECURITY=TRANSITIONAL
 #   - lc02 DELETE ASSOCIATION NFS SCH_2300 P_FCS_WAS 
 #   - lc02 DELETE NODEGROUPMEMBER NFS P_FCS_WAS 
