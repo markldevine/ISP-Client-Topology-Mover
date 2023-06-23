@@ -198,7 +198,7 @@ sub MAIN (
               ~ ' '
               ~ $NODE_NAME,
                 'green');
-    put colored('DEFILE NODEGROUPMEMBER '
+    put colored('DEFINE NODEGROUPMEMBER '
               ~ $NODEGROUP
               ~ ' '
               ~ $NODE_NAME,
