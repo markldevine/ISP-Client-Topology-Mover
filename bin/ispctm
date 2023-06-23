@@ -249,6 +249,19 @@ sub MAIN (
 #       - check REPLNODE
 #           - if STGRULE hasn't finished replication fully, report and terminate
 #       - determine current home and proposed home
+
+
+********************************************************************************
+********************************************************************************
+********************************************************************************
+no active sesssions
+no pending or active REPLICATION
+********************************************************************************
+********************************************************************************
+********************************************************************************
+
+
+
 #   - ask the user if they want to switch
 #   - lc01 UPDATE NODE P_FCS_WAS xxxxxxxx SESSIONSECURITY=TRANSITIONAL
 #   - lc01 UNLOCK NODE P_FCS_WAS
