@@ -50,6 +50,7 @@ sub MAIN (
     Str:D   :$isp-node-name!,                   #= ISP client name (SELECT NODE_NAME FROM NODES)
     Str:D   :$isp-server-current!,              #= ISP server "current home" name (SELECT SERVER_NAME FROM STATUS)
     Str:D   :$isp-admin!,                       #= ISP server Admin account (CLASS=SYSTEM)
+    Bool    :$cache,                            #= Read from cache
 ) {
 
 ################################################################################
@@ -115,7 +116,7 @@ sub MAIN (
 #put "if ($start-dt - DateTime.new(now)) " ~ ($start-dt - DateTime.new(now)) ~ ' < ' ~ (QUERYSCHEDPERIOD * 60 * 60);
     if ($start-dt - DateTime.new(now)) < (QUERYSCHEDPERIOD * 60 * 60) {
         $*ERR.put: colored('Remember to cycle the Client Acceptor because it may not refresh before the schedule is called!', 'red');
-        die colored('Check to make sure their are no active SESSIONs for this NODE!', 'red');
+        warn colored('Check to make sure their are no active SESSIONs for this NODE!', 'red');
     }
     else {
 #warn 'fine: ' ~ ($start-dt - DateTime.new(now));
@@ -125,8 +126,8 @@ sub MAIN (
     for $replnode-info.list -> $rcd {
         my $diff                = $rcd{'Objects on Source Replication Server'}.subst(',', :g) - $rcd{'Objects on Target Replication Server'}.subst(',', :g);
         if $diff > 0 {
-            colored('Current replication source has ' ~ $diff ~ ' unreplicated objects pending!', 'white on_black').put;
-            die colored('Finish replicating ' ~ $NODE_NAME ~ ' before continuing.', 'red');
+            $*ERR.put: colored('Current replication source has ' ~ $diff ~ ' unreplicated objects pending!', 'white on_black');
+            warn colored('Finish replicating ' ~ $NODE_NAME ~ ' before continuing.', 'red');
         }
         $PROPOSED_SERVER_NAME   = $rcd{'Target Replication Server'};
     }
@@ -255,7 +256,7 @@ sub MAIN (
 ********************************************************************************
 ********************************************************************************
 no active sesssions
-no pending or active REPLICATION
+no imminent or active REPLICATION
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
